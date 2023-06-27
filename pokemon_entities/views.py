@@ -1,7 +1,9 @@
 import folium
 
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import localtime
+
+from pogomap.settings import MEDIA_URL
 from pokemon_entities.models import Pokemon, PokemonEntity
 
 
@@ -27,7 +29,7 @@ def add_pokemon(folium_map, lat, lon, image_url=DEFAULT_IMAGE_URL):
 
 
 def show_all_pokemons(request):
-    base_url = request.build_absolute_uri('/media/')
+    base_url = request.build_absolute_uri(MEDIA_URL)
 
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
     for pokemon in PokemonEntity.objects.filter(appeared_at__lte=localtime(), disappeared_at__gt=localtime()):
@@ -52,16 +54,17 @@ def show_all_pokemons(request):
 
 
 def show_pokemon(request, pokemon_id):
-    requested_pokemon = Pokemon.objects.get(id=pokemon_id)
+    requested_pokemon = get_object_or_404(Pokemon, id=pokemon_id)
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
+    current_time = localtime()
 
     pokemon_entities = PokemonEntity.objects.filter(
-        appeared_at__lte=localtime(),
-        disappeared_at__gt=localtime(),
+        appeared_at__lte=current_time,
+        disappeared_at__gt=current_time,
         pokemon=requested_pokemon
     )
 
-    base_url = request.build_absolute_uri('/media/')
+    base_url = request.build_absolute_uri(MEDIA_URL)
 
     for pokemon in pokemon_entities:
         add_pokemon(
@@ -86,9 +89,9 @@ def show_pokemon(request, pokemon_id):
                 'title_ru': requested_pokemon.previous_evolution.title
             } if requested_pokemon.previous_evolution else None,
             'next_evolution': {
-                'pokemon_id': requested_pokemon.pokemon_entities.all()[0].id,
-                'img_url': f"{base_url}{requested_pokemon.pokemon_entities.all()[0].photo}",
-                'title_ru': requested_pokemon.pokemon_entities.all()[0].title
-            } if requested_pokemon.pokemon_entities.all() else None
+                'pokemon_id': requested_pokemon.pokemons_next_evolution.all().first().id,
+                'img_url': f"{base_url}{requested_pokemon.pokemons_next_evolution.all().first().photo}",
+                'title_ru': requested_pokemon.pokemons_next_evolution.all().first().title
+            } if requested_pokemon.pokemons_next_evolution.all() else None
         }
     })

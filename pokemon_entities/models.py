@@ -25,23 +25,24 @@ class Pokemon(models.Model):
         "self", on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="pokemon_entities",
+        related_name="pokemons_next_evolution",
         verbose_name='Из кого эволюционировал'
     )
-
-    def __str__(self):
-        return self.title
 
     class Meta:
         verbose_name = 'Покемон'
         verbose_name_plural = 'Покемоны'
+
+    def __str__(self):
+        return self.title
 
 
 class PokemonEntity(models.Model):
     pokemon = models.ForeignKey(
         Pokemon,
         on_delete=models.CASCADE,
-        verbose_name='Имя покемона'
+        verbose_name='Имя покемона',
+        related_name='pokemons'
     )
     lat = models.FloatField(verbose_name='Широта')
     lon = models.FloatField(verbose_name='Долгота')
@@ -76,3 +77,7 @@ class PokemonEntity(models.Model):
         null=True,
         blank=True
     )
+
+    def __str__(self):
+        return f'Вид: {self.pokemon}, ID: {self.id}'
+
