@@ -3,7 +3,6 @@ import folium
 from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import localtime
 
-from pogomap.settings import MEDIA_URL
 from pokemon_entities.models import Pokemon, PokemonEntity
 
 
@@ -29,21 +28,21 @@ def add_pokemon(folium_map, lat, lon, image_url=DEFAULT_IMAGE_URL):
 
 
 def show_all_pokemons(request):
-    base_url = request.build_absolute_uri(MEDIA_URL)
+    current_time = localtime()
 
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
-    for pokemon in PokemonEntity.objects.filter(appeared_at__lte=localtime(), disappeared_at__gt=localtime()):
+    for pokemon_entity in PokemonEntity.objects.filter(appeared_at__lte=current_time, disappeared_at__gt=current_time):
         add_pokemon(
-            folium_map, pokemon.lat,
-            pokemon.lon,
-            f"{base_url}{pokemon.pokemon.photo}"
+            folium_map, pokemon_entity.lat,
+            pokemon_entity.lon,
+            request.build_absolute_uri(pokemon_entity.pokemon.photo.url)
         )
 
     pokemons_on_page = []
     for pokemon in Pokemon.objects.all():
         pokemons_on_page.append({
             'pokemon_id': pokemon.id,
-            'img_url': f"{base_url}{pokemon.photo}",
+            'img_url': request.build_absolute_uri(pokemon.photo.url),
             'title_ru': pokemon.title,
         })
 
@@ -64,34 +63,40 @@ def show_pokemon(request, pokemon_id):
         pokemon=requested_pokemon
     )
 
-    base_url = request.build_absolute_uri(MEDIA_URL)
-
-    for pokemon in pokemon_entities:
+    for pokemon_entity in pokemon_entities:
         add_pokemon(
             folium_map,
-            pokemon.lat,
-            pokemon.lon,
-            f"{base_url}{pokemon.pokemon.photo}"
+            pokemon_entity.lat,
+            pokemon_entity.lon,
+            request.build_absolute_uri(pokemon_entity.pokemon.photo.url)
         )
+
+    pokemon_dict = {
+        'pokemon_id': requested_pokemon.id,
+        'img_url': request.build_absolute_uri(requested_pokemon.photo.url),
+        'title_ru': requested_pokemon.title,
+        'title_en': requested_pokemon.title_en,
+        'title_jp': requested_pokemon.title_jp,
+        'description': requested_pokemon.description,
+    }
+
+    if requested_pokemon.previous_evolution:
+        previous_evolution = requested_pokemon.previous_evolution
+        pokemon_dict['previous_evolution'] = {
+            'pokemon_id': previous_evolution.id,
+            'img_url': request.build_absolute_uri(previous_evolution.photo.url),
+            'title_ru': previous_evolution.title
+        }
+
+    if requested_pokemon.next_evolution.all():
+        next_evolution = requested_pokemon.next_evolution.first()
+        pokemon_dict['next_evolution'] = {
+            'pokemon_id': next_evolution.id,
+            'img_url': request.build_absolute_uri(next_evolution.photo.url),
+            'title_ru': next_evolution.title
+        }
 
     return render(request, 'pokemon.html', context={
         'map': folium_map._repr_html_(),
-        'pokemon': {
-            'pokemon_id': requested_pokemon.id,
-            'img_url': f"{base_url}{requested_pokemon.photo}",
-            'title_ru': requested_pokemon.title,
-            'title_en': requested_pokemon.title_en,
-            'title_jp': requested_pokemon.title_jp,
-            'description': requested_pokemon.description,
-            'previous_evolution': {
-                'pokemon_id': requested_pokemon.previous_evolution.id,
-                'img_url': f"{base_url}{requested_pokemon.previous_evolution.photo}",
-                'title_ru': requested_pokemon.previous_evolution.title
-            } if requested_pokemon.previous_evolution else None,
-            'next_evolution': {
-                'pokemon_id': requested_pokemon.pokemons_next_evolution.all().first().id,
-                'img_url': f"{base_url}{requested_pokemon.pokemons_next_evolution.all().first().photo}",
-                'title_ru': requested_pokemon.pokemons_next_evolution.all().first().title
-            } if requested_pokemon.pokemons_next_evolution.all() else None
-        }
+        'pokemon': pokemon_dict
     })
