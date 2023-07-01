@@ -25,7 +25,7 @@ class Pokemon(models.Model):
         "self", on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="next_evolution",
+        related_name="next_evolutions",
         verbose_name='Из кого эволюционировал'
     )
 
@@ -42,7 +42,7 @@ class PokemonEntity(models.Model):
         Pokemon,
         on_delete=models.CASCADE,
         verbose_name='Имя покемона',
-        related_name='pokemon_entities'
+        related_name='entities'
     )
     lat = models.FloatField(verbose_name='Широта')
     lon = models.FloatField(verbose_name='Долгота')
